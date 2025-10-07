@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import sql from 'mssql';
-import connectionString from '../config/database';
+import connectionString, { possibleServers } from '../config/database';
 
 const router = Router();
 
@@ -36,8 +36,8 @@ router.get('/database', async (req: Request, res: Response) => {
 
         res.json({
             status: 'connected',
-            server: 'expandev-server.database.windows.net',
-            database: 'expandev-db',
+            server: 'expandev-sql-server-br.database.windows.net',
+            database: 'expandev-main',
             connection_time_ms: connectionTime,
             query_time_ms: queryTime,
             test_result: result.recordset[0],
@@ -49,8 +49,8 @@ router.get('/database', async (req: Request, res: Response) => {
         res.status(500).json({
             status: 'failed',
             error: error.message,
-            server: 'expandev-server.database.windows.net',
-            database: 'expandev-db',
+            server: 'expandev-sql-server-br.database.windows.net',
+            database: 'expandev-main',
             timestamp: new Date().toISOString()
         });
     }
@@ -220,9 +220,9 @@ router.get('/environment', async (req: Request, res: Response) => {
         status: 'success',
         database_connection: {
             type: 'hardcoded_connection_string',
-            server: 'expandev-server.database.windows.net',
-            database: 'expandev-db',
-            user: 'adminuser',
+            server: 'expandev-sql-server-br.database.windows.net',
+            database: 'expandev-main',
+            user: 'sqladmin',
             port: 1433,
             encrypt: true
         },
@@ -232,6 +232,56 @@ router.get('/environment', async (req: Request, res: Response) => {
             CORS_ORIGINS: process.env.CORS_ORIGINS || 'Not set'
         },
         message: 'Using hardcoded Azure SQL Database connection string',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// GET /api/v1/diagnostic/test-servers - Testar diferentes servidores
+router.get('/test-servers', async (req: Request, res: Response) => {
+    console.log('🔍 Testing different Azure SQL servers...');
+
+    const results = [];
+
+    for (const server of possibleServers) {
+        const testConnectionString = `Server=tcp:${server},1433;Initial Catalog=expandev-main;Persist Security Info=False;User ID=sqladmin;Password=Expandev2024!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=10;`;
+
+        try {
+            console.log(`Testing server: ${server}`);
+            const testPool = new sql.ConnectionPool(testConnectionString);
+
+            const startTime = Date.now();
+            await testPool.connect();
+            const connectionTime = Date.now() - startTime;
+
+            await testPool.request().query('SELECT 1 as test');
+            await testPool.close();
+
+            results.push({
+                server,
+                status: 'success',
+                connection_time_ms: connectionTime,
+                message: 'Connected successfully!'
+            });
+
+            console.log(`✅ ${server} - SUCCESS`);
+
+        } catch (error: any) {
+            results.push({
+                server,
+                status: 'failed',
+                error: error.message,
+                error_code: error.code
+            });
+
+            console.log(`❌ ${server} - FAILED: ${error.message}`);
+        }
+    }
+
+    res.json({
+        status: 'completed',
+        servers_tested: possibleServers.length,
+        results,
+        recommendation: results.find(r => r.status === 'success')?.server || 'None working - verify server name and credentials',
         timestamp: new Date().toISOString()
     });
 });

@@ -37,7 +37,8 @@ app.get('/', (req, res) => {
         tables: '/api/v1/diagnostic/tables',
         users: '/api/v1/diagnostic/users',
         scripts: '/api/v1/diagnostic/scripts',
-        environment: '/api/v1/diagnostic/environment'
+        environment: '/api/v1/diagnostic/environment',
+        testServers: '/api/v1/diagnostic/test-servers'
       }
     }
   });
