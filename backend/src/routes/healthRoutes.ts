@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import sql from 'mssql';
-import dbConfig from '../config/database';
+import connectionString from '../config/database';
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
   // Teste rápido de conexão com banco (opcional)
   try {
-    const testPool = new sql.ConnectionPool(dbConfig);
+    const testPool = new sql.ConnectionPool(connectionString);
     await testPool.connect();
     await testPool.request().query('SELECT 1');
     await testPool.close();

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import sql from 'mssql';
-import dbConfig from '../config/database';
+import connectionString from '../config/database';
 
 const router = Router();
 
@@ -9,7 +9,7 @@ let pool: sql.ConnectionPool | null = null;
 
 async function getPool(): Promise<sql.ConnectionPool> {
     if (!pool) {
-        pool = new sql.ConnectionPool(dbConfig);
+        pool = new sql.ConnectionPool(connectionString);
         await pool.connect();
     }
     return pool;
@@ -20,7 +20,7 @@ router.get('/database', async (req: Request, res: Response) => {
     try {
         console.log('🔍 Testing database connection...');
 
-        const testPool = new sql.ConnectionPool(dbConfig);
+        const testPool = new sql.ConnectionPool(connectionString);
         const connectionStart = Date.now();
 
         await testPool.connect();
@@ -36,8 +36,8 @@ router.get('/database', async (req: Request, res: Response) => {
 
         res.json({
             status: 'connected',
-            server: dbConfig.server,
-            database: dbConfig.database,
+            server: 'expandev-server.database.windows.net',
+            database: 'expandev-db',
             connection_time_ms: connectionTime,
             query_time_ms: queryTime,
             test_result: result.recordset[0],
@@ -49,8 +49,8 @@ router.get('/database', async (req: Request, res: Response) => {
         res.status(500).json({
             status: 'failed',
             error: error.message,
-            server: dbConfig.server,
-            database: dbConfig.database,
+            server: 'expandev-server.database.windows.net',
+            database: 'expandev-db',
             timestamp: new Date().toISOString()
         });
     }
@@ -216,26 +216,22 @@ router.get('/scripts', async (req: Request, res: Response) => {
 
 // GET /api/v1/diagnostic/environment - Verificar variáveis de ambiente
 router.get('/environment', async (req: Request, res: Response) => {
-    const envVars = {
-        DB_SERVER: process.env.DB_SERVER ? '✅ Set' : '❌ Missing',
-        DB_NAME: process.env.DB_NAME ? '✅ Set' : '❌ Missing',
-        DB_USER: process.env.DB_USER ? '✅ Set' : '❌ Missing',
-        DB_PASSWORD: process.env.DB_PASSWORD ? '✅ Set (hidden)' : '❌ Missing',
-        DB_PORT: process.env.DB_PORT || 'Using default (1433)',
-        NODE_ENV: process.env.NODE_ENV || 'development',
-        PORT: process.env.PORT || '3001'
-    };
-
     res.json({
         status: 'success',
-        environment_variables: envVars,
-        database_config: {
-            server: dbConfig.server,
-            database: dbConfig.database,
-            user: dbConfig.user,
-            port: dbConfig.port,
-            encrypt: dbConfig.options?.encrypt
+        database_connection: {
+            type: 'hardcoded_connection_string',
+            server: 'expandev-server.database.windows.net',
+            database: 'expandev-db',
+            user: 'adminuser',
+            port: 1433,
+            encrypt: true
         },
+        environment_variables: {
+            NODE_ENV: process.env.NODE_ENV || 'development',
+            PORT: process.env.PORT || '3001',
+            CORS_ORIGINS: process.env.CORS_ORIGINS || 'Not set'
+        },
+        message: 'Using hardcoded Azure SQL Database connection string',
         timestamp: new Date().toISOString()
     });
 });
