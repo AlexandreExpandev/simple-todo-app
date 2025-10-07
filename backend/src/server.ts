@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { userRoutes } from './routes/userRoutes';
 import { healthRoutes } from './routes/healthRoutes';
+import { diagnosticRoutes } from './routes/diagnosticRoutes';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(express.json());
 // Routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/diagnostic', diagnosticRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -29,7 +31,14 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/v1/health',
-      users: '/api/v1/users'
+      users: '/api/v1/users',
+      diagnostic: {
+        database: '/api/v1/diagnostic/database',
+        tables: '/api/v1/diagnostic/tables',
+        users: '/api/v1/diagnostic/users',
+        scripts: '/api/v1/diagnostic/scripts',
+        environment: '/api/v1/diagnostic/environment'
+      }
     }
   });
 });
