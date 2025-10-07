@@ -115,27 +115,63 @@ Os workflows irão:
 4. **Executar scripts SQL em ordem (01, 02, 03, 04...)**
 5. Configurar a conexão entre frontend e backend automaticamente
 
+## ⚠️ PROBLEMA IDENTIFICADO E SOLUCIONADO
+
+### O que estava acontecendo:
+O frontend estava mostrando "❌ Backend Offline - Error: Network Error" porque:
+1. O backend não estava rodando localmente na porta 3001
+2. Configurações de CORS precisavam ser ajustadas
+3. Scripts de produção no frontend precisavam ser corrigidos
+
+### ✅ CORREÇÕES APLICADAS:
+
+#### Frontend (`frontend/package.json`):
+- ✅ Adicionado `serve` para produção no Azure
+- ✅ Script `start` agora usa `npx serve -s build -l 8080`
+- ✅ Script `dev` usa `react-scripts start` para desenvolvimento
+- ✅ Movido `react-scripts` para dependencies (necessário para build)
+
+#### Backend (`backend/src/server.ts`):
+- ✅ CORS configurado para localhost:3000 e localhost:3001
+- ✅ Headers CORS apropriados adicionados
+- ✅ Porta 3001 confirmada
+
+#### Arquivos de Ambiente Criados:
+- ✅ `frontend/.env.local` com `REACT_APP_API_URL=http://localhost:3001/api/v1`
+- ✅ `backend/.env.local` com `PORT=3001`
+
 ## Testando Localmente
 
-1. **Iniciar o backend:**
+**IMPORTANTE:** Para testar a comunicação frontend-backend, você precisa rodar AMBOS:
+
+1. **Terminal 1 - Iniciar o backend:**
    ```bash
    cd backend
    npm install
    npm run dev
    ```
+   ✅ Backend deve mostrar: "🚀 Server running on port 3001"
 
-2. **Iniciar o frontend:**
+2. **Terminal 2 - Iniciar o frontend:**
    ```bash
    cd frontend
    npm install
-   npm start
+   npm run dev  # Use 'dev' para desenvolvimento local
    ```
 
 3. **Acessar:** http://localhost:3000
 
-O frontend mostrará:
-- ✅ Status do backend (se conectou)
-- Lista de usuários com CRUD completo
+4. **Testar endpoints manualmente:**
+   ```bash
+   curl http://localhost:3001/
+   curl http://localhost:3001/api/v1/health
+   ```
+
+### O que deve funcionar agora:
+- ✅ Frontend conecta com backend na porta 3001
+- ✅ Health Check mostra status "Backend is healthy"
+- ✅ Lista de usuários (quando implementada com banco)
+- ✅ Deploy no Azure funcionará com script de produção correto
 
 ## Variáveis de Ambiente
 
