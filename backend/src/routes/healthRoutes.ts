@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
     }
   };
 
-  // Teste rápido de conexão com banco (opcional)
+  // Teste rápido de conexão com banco
   try {
     const testPool = new sql.ConnectionPool(connectionString);
     await testPool.connect();
@@ -33,8 +33,6 @@ router.get('/', async (req, res) => {
       status: 'disconnected',
       message: error.message
     };
-    // Não falhar o health check por causa do banco
-    // health.status = 'degraded';
   }
 
   res.json(health);
