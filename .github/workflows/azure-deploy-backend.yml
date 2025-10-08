@@ -1,0 +1,62 @@
+name: Deploy Backend to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build --if-present
+
+      # 🔐 Login na Azure com Service Principal
+      - name: Login to Azure using Service Principal
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      # 🚀 Deploy do backend no Azure Web App
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.APP_NAME_BACKEND }}
+          package: .
+
+      # ⚙️ Executar scripts SQL após o deploy
+      - name: Run SQL scripts in Azure Database
+        env:
+          DB_SERVER: "expandev-sql-server-br.database.windows.net"
+          DB_NAME: "expandev-main"
+          DB_USER: "sqladmin"
+          DB_PASS: "Expandev2024!"
+        run: |
+          echo "Instalando sqlcmd..."
+          sudo apt-get update
+          sudo apt-get install -y mssql-tools unixodbc-dev
+
+          echo "Executando scripts SQL..."
+          for file in ./database/*.sql; do
+            echo "Executando $file..."
+            /opt/mssql-tools/bin/sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASS" -i "$file"
+          done
+
+          echo "Todos os scripts foram executados com sucesso!"
