@@ -1,121 +1,115 @@
-import { Router, Request, Response } from 'express';
-import sql from 'mssql';
-import connectionString from '../config/database';
+import { Router } from 'express';
 
 const router = Router();
 
-// Pool de conexão reutilizável
-let pool: sql.ConnectionPool | null = null;
+// Mock users data
+const users = [
+  { id: 1, name: 'João Silva', email: 'joao@example.com', role: 'admin' },
+  { id: 2, name: 'Maria Santos', email: 'maria@example.com', role: 'user' },
+  { id: 3, name: 'Pedro Oliveira', email: 'pedro@example.com', role: 'user' }
+];
 
-async function getPool(): Promise<sql.ConnectionPool> {
-    if (!pool) {
-        pool = new sql.ConnectionPool(connectionString);
-        await pool.connect();
-    }
-    return pool;
-}
-
-// GET /api/v1/users - Listar todos os usuários
-router.get('/', async (req: Request, res: Response) => {
-    try {
-        const currentPool = await getPool();
-        const request = currentPool.request();
-        const result = await request.query('SELECT * FROM users ORDER BY id');
-
-        res.json({
-            status: 'success',
-            users: result.recordset,
-            count: result.recordset.length,
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error: any) {
-        console.error('❌ Error fetching users:', error);
-        res.status(500).json({
-            status: 'error',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
+// GET /api/v1/users
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    data: users,
+    total: users.length
+  });
 });
 
-// GET /api/v1/users/:id - Buscar usuário por ID
-router.get('/:id', async (req: Request, res: Response) => {
-    try {
-        const userId = parseInt(req.params.id);
-        if (isNaN(userId)) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Invalid user ID'
-            });
-        }
+// GET /api/v1/users/:id
+router.get('/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const user = users.find(u => u.id === id);
 
-        const currentPool = await getPool();
-        const request = currentPool.request();
-        request.input('userId', sql.Int, userId);
-        const result = await request.query('SELECT * FROM users WHERE id = @userId');
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    });
+  }
 
-        if (result.recordset.length === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'User not found'
-            });
-        }
-
-        res.json({
-            status: 'success',
-            user: result.recordset[0],
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error: any) {
-        console.error('❌ Error fetching user:', error);
-        res.status(500).json({
-            status: 'error',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
+  res.json({
+    success: true,
+    data: user
+  });
 });
 
-// POST /api/v1/users - Criar novo usuário
-router.post('/', async (req: Request, res: Response) => {
-    try {
-        const { name, email } = req.body;
+// POST /api/v1/users
+router.post('/', (req, res) => {
+  const { name, email, role } = req.body;
 
-        if (!name || !email) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Name and email are required'
-            });
-        }
+  if (!name || !email) {
+    return res.status(400).json({
+      success: false,
+      error: 'Name and email are required'
+    });
+  }
 
-        const currentPool = await getPool();
-        const request = currentPool.request();
-        request.input('name', sql.NVarChar, name);
-        request.input('email', sql.NVarChar, email);
+  const newUser = {
+    id: users.length + 1,
+    name,
+    email,
+    role: role || 'user'
+  };
 
-        const result = await request.query(`
-            INSERT INTO users (name, email, created_at)
-            OUTPUT INSERTED.*
-            VALUES (@name, @email, GETDATE())
-        `);
+  users.push(newUser);
 
-        res.status(201).json({
-            status: 'success',
-            user: result.recordset[0],
-            message: 'User created successfully',
-            timestamp: new Date().toISOString()
-        });
+  res.status(201).json({
+    success: true,
+    data: newUser,
+    message: 'User created successfully'
+  });
+});
 
-    } catch (error: any) {
-        console.error('❌ Error creating user:', error);
-        res.status(500).json({
-            status: 'error',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
+// PUT /api/v1/users/:id
+router.put('/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const userIndex = users.findIndex(u => u.id === id);
+
+  if (userIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    });
+  }
+
+  const { name, email, role } = req.body;
+
+  users[userIndex] = {
+    ...users[userIndex],
+    ...(name && { name }),
+    ...(email && { email }),
+    ...(role && { role })
+  };
+
+  res.json({
+    success: true,
+    data: users[userIndex],
+    message: 'User updated successfully'
+  });
+});
+
+// DELETE /api/v1/users/:id
+router.delete('/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const userIndex = users.findIndex(u => u.id === id);
+
+  if (userIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    });
+  }
+
+  const deletedUser = users.splice(userIndex, 1)[0];
+
+  res.json({
+    success: true,
+    data: deletedUser,
+    message: 'User deleted successfully'
+  });
 });
 
 export { router as userRoutes };
